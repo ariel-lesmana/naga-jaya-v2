@@ -36,6 +36,9 @@ coverage/
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
 
+# Backups
+backups/
+
 # Editor / OS
 .vscode/
 .idea/

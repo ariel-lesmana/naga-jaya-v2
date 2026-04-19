@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { exportExcel } from "@/lib/api";
 import { ImportModal } from "./ImportModal";
@@ -53,6 +53,13 @@ export function NavActions() {
           <Upload size={16} />
           Import Excel
         </button>
+        <Link
+          href="/sampah"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-bg transition-colors"
+        >
+          <Trash2 size={16} />
+          Sampah
+        </Link>
         <Link
           href="/products/new"
           className="bg-text text-surface px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"

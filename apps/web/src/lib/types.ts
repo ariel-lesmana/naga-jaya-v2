@@ -24,6 +24,7 @@ export interface ProductResponse {
   harga_gross: number | null;
   disc_pct: number | null;
   created_at: string;
+  deleted_at: string | null;
   disc_net_computed: number | null;
   harga_beli_satuan: number | null;
   harga_beli_grosir: number | null;

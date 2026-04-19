@@ -12,7 +12,9 @@ import {
   SummaryEntry,
 } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { env } from './env';
+
+const API_URL = env.NEXT_PUBLIC_API_URL;
 
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
@@ -35,12 +37,16 @@ export function getProducts(params: {
   brand_id?: number;
   page?: number;
   limit?: number;
+  sort_by?: 'name' | 'brand' | 'created_at';
+  sort_dir?: 'asc' | 'desc';
 }): Promise<PaginatedProducts> {
   const query = new URLSearchParams();
   if (params.search) query.set('search', params.search);
   if (params.brand_id) query.set('brand_id', String(params.brand_id));
   if (params.page) query.set('page', String(params.page));
   if (params.limit) query.set('limit', String(params.limit));
+  if (params.sort_by) query.set('sort_by', params.sort_by);
+  if (params.sort_dir) query.set('sort_dir', params.sort_dir);
   return fetchAPI(`/products?${query.toString()}`);
 }
 
@@ -67,6 +73,30 @@ export function updateProduct(
 
 export function deleteProduct(id: number): Promise<{ success: boolean }> {
   return fetchAPI(`/products/${id}`, { method: 'DELETE' });
+}
+
+export function restoreProduct(id: number): Promise<ProductResponse> {
+  return fetchAPI(`/products/${id}/restore`, { method: 'PATCH' });
+}
+
+export function permanentDeleteProduct(
+  id: number,
+): Promise<{ success: boolean }> {
+  return fetchAPI(`/products/${id}/permanent`, { method: 'DELETE' });
+}
+
+export function getDeletedProducts(params: {
+  search?: string;
+  brand_id?: number;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedProducts> {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  if (params.brand_id) query.set('brand_id', String(params.brand_id));
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+  return fetchAPI(`/products/trash?${query.toString()}`);
 }
 
 export async function previewImport(

@@ -38,8 +38,10 @@ model Product {
   harga_gross       Int?
   disc_pct          Decimal?  @db.Decimal(5, 2)
   created_at        DateTime? @default(now()) @db.Timestamp(6)
+  deleted_at        DateTime? @db.Timestamp(6)
   price_history     PriceHistory[]
 
+  @@index([deleted_at])
   @@map("products")
 }
 

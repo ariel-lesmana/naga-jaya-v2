@@ -50,7 +50,7 @@ export function RecentChanges({
                   <span className="text-sm font-medium truncate">
                     {entry.product_name}
                   </span>
-                  <span className="text-[10px] text-muted bg-bg px-1.5 py-0.5 rounded shrink-0">
+                  <span className="text-xs text-muted bg-bg px-1.5 py-0.5 rounded shrink-0">
                     {entry.brand_name}
                   </span>
                 </div>
@@ -74,7 +74,7 @@ export function RecentChanges({
                   )}
                 </div>
               </div>
-              <span className="text-[11px] text-muted shrink-0">
+              <span className="text-xs text-muted shrink-0">
                 {entry.relative_time}
               </span>
             </button>

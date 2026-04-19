@@ -23,12 +23,41 @@ export class ProductsController {
     @Query('brand_id') brand_id?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('sort_by') sort_by?: string,
+    @Query('sort_dir') sort_dir?: string,
+  ) {
+    const allowedSortBy = ['name', 'brand', 'created_at'] as const;
+    const allowedSortDir = ['asc', 'desc'] as const;
+    const safeSortBy = allowedSortBy.includes(sort_by as any)
+      ? (sort_by as (typeof allowedSortBy)[number])
+      : undefined;
+    const safeSortDir = allowedSortDir.includes(sort_dir as any)
+      ? (sort_dir as (typeof allowedSortDir)[number])
+      : undefined;
+
+    return this.productsService.findAll({
+      search,
+      brand_id: brand_id ? parseInt(brand_id, 10) : undefined,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      sort_by: safeSortBy,
+      sort_dir: safeSortDir,
+    });
+  }
+
+  @Get('trash')
+  findDeleted(
+    @Query('search') search?: string,
+    @Query('brand_id') brand_id?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.productsService.findAll({
       search,
       brand_id: brand_id ? parseInt(brand_id, 10) : undefined,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
+      deleted: true,
     });
   }
 
@@ -47,8 +76,18 @@ export class ProductsController {
     return this.productsService.update(id, dto);
   }
 
+  @Patch(':id/restore')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.restore(id);
+  }
+
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.remove(id);
+  }
+
+  @Delete(':id/permanent')
+  permanentRemove(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.permanentRemove(id);
   }
 }

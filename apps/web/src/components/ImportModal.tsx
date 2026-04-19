@@ -120,9 +120,10 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleClose}
             disabled={loading}
-            className="p-1.5 rounded hover:bg-bg transition-colors text-muted hover:text-text"
+            aria-label="Tutup"
+            className="p-2.5 rounded-lg hover:bg-bg transition-colors text-muted hover:text-text"
           >
-            <X size={20} />
+            <X size={22} />
           </button>
         </div>
 

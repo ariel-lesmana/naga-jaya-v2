@@ -1,3 +1,4 @@
+import { env } from './env';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { json } from 'express';
@@ -18,10 +19,7 @@ async function bootstrap() {
     }),
   );
 
-  // TODO: add JWT guard here
-
-  const port = process.env.PORT || 3001;
-  await app.listen(port);
-  console.log(`API running on http://localhost:${port}`);
+  await app.listen(env.PORT);
+  console.log(`API running on http://localhost:${env.PORT}`);
 }
 bootstrap();

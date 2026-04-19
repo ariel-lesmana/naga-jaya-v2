@@ -11,11 +11,7 @@ import { RecentChanges } from "@/components/RecentChanges";
 import { Tooltip, InfoIcon } from "@/components/Tooltip";
 import { toast } from "sonner";
 
-type SortKey =
-  | "brand"
-  | "name"
-  | "harga_beli_satuan"
-  | "harga_beli_grosir";
+type SortKey = "brand" | "name";
 
 const BUY_PRICE_TIERS = [
   { key: "harga_per_pcs", label: "/pcs" },
@@ -63,17 +59,17 @@ function StackedPriceCell({
       {visible.map((t, i) => (
         <div key={i} className="whitespace-nowrap">
           <span
-            className={`font-[family-name:var(--font-dm-mono)] text-xs ${bold ? "font-semibold" : ""}`}
+            className={`font-[family-name:var(--font-dm-mono)] text-sm ${bold ? "font-semibold" : ""}`}
           >
             {formatIDR(t.value)}
           </span>
-          <span className="font-[family-name:var(--font-dm-mono)] text-[10px] text-muted ml-1">
+          <span className="font-[family-name:var(--font-dm-mono)] text-xs text-muted ml-1">
             {t.label}
           </span>
         </div>
       ))}
       {remaining > 0 && (
-        <div className="text-[10px] text-muted font-[family-name:var(--font-dm-mono)]">
+        <div className="text-xs text-muted font-[family-name:var(--font-dm-mono)]">
           +{remaining} lagi
         </div>
       )}
@@ -81,8 +77,49 @@ function StackedPriceCell({
   );
 }
 
+function TableSkeleton() {
+  return (
+    <div className="bg-surface rounded-xl border border-border overflow-hidden">
+      <table className="w-full text-sm">
+        <tbody>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <tr
+              key={i}
+              className={i % 2 === 0 ? "bg-surface" : "bg-bg"}
+            >
+              <td className="w-36 px-3 py-3">
+                <div className="h-3 bg-border rounded w-20 animate-pulse" />
+              </td>
+              <td className="px-3 py-3">
+                <div className="h-3 bg-border rounded w-3/4 animate-pulse" />
+              </td>
+              <td className="w-44 px-3 py-3">
+                <div className="space-y-1.5">
+                  <div className="h-3 bg-border rounded w-24 animate-pulse" />
+                  <div className="h-3 bg-border rounded w-20 animate-pulse" />
+                </div>
+              </td>
+              <td className="w-44 px-3 py-3">
+                <div className="space-y-1.5">
+                  <div className="h-3 bg-border rounded w-24 animate-pulse" />
+                  <div className="h-3 bg-border rounded w-20 animate-pulse" />
+                </div>
+              </td>
+              <td className="w-24 px-3 py-3">
+                <div className="flex gap-2">
+                  <div className="h-9 w-9 bg-border rounded animate-pulse" />
+                  <div className="h-9 w-9 bg-border rounded animate-pulse" />
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 type SortDir = "asc" | "desc";
-type MarginFilter = "all" | "gt20" | "10to20" | "lt10" | "no_sell";
 
 export default function HomePage() {
   const router = useRouter();
@@ -93,7 +130,6 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [brandFilter, setBrandFilter] = useState<number | undefined>();
-  const [marginFilter, setMarginFilter] = useState<MarginFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedProduct, setSelectedProduct] =
@@ -109,19 +145,30 @@ export default function HomePage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    if (page !== 1) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("page");
+      router.replace(`?${params.toString()}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, brandFilter, sortKey, sortDir]);
+
   const { data: brands } = useQuery({
     queryKey: ["brands"],
     queryFn: getBrands,
   });
 
   const { data: productsData, isLoading } = useQuery({
-    queryKey: ["products", debouncedSearch, brandFilter, page],
+    queryKey: ["products", debouncedSearch, brandFilter, page, sortKey, sortDir],
     queryFn: () =>
       getProducts({
         search: debouncedSearch || undefined,
         brand_id: brandFilter,
         page,
         limit: 50,
+        sort_by: sortKey,
+        sort_dir: sortDir,
       }),
   });
 
@@ -129,7 +176,7 @@ export default function HomePage() {
     mutationFn: deleteProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Produk berhasil dihapus");
+      toast.success("Produk dipindah ke sampah");
       setDeletingId(null);
     },
     onError: (err: Error) => {
@@ -138,55 +185,11 @@ export default function HomePage() {
     },
   });
 
-  const filteredAndSorted = useMemo(() => {
-    if (!productsData?.data) return [];
-    let items = [...productsData.data];
-
-    if (marginFilter !== "all") {
-      items = items.filter((p) => {
-        if (marginFilter === "no_sell") return p.harga_jual == null;
-        if (p.margin_pct == null) return false;
-        if (marginFilter === "gt20") return p.margin_pct >= 20;
-        if (marginFilter === "10to20")
-          return p.margin_pct >= 10 && p.margin_pct < 20;
-        if (marginFilter === "lt10") return p.margin_pct < 10;
-        return true;
-      });
-    }
-
-    items.sort((a, b) => {
-      let aVal: any, bVal: any;
-      switch (sortKey) {
-        case "brand":
-          aVal = a.brand.name;
-          bVal = b.brand.name;
-          break;
-        case "name":
-          aVal = a.name;
-          bVal = b.name;
-          break;
-        default:
-          aVal = a[sortKey];
-          bVal = b[sortKey];
-      }
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
-      if (typeof aVal === "string") {
-        return sortDir === "asc"
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
-      }
-      return sortDir === "asc" ? aVal - bVal : bVal - aVal;
-    });
-
-    return items;
-  }, [productsData?.data, marginFilter, sortKey, sortDir]);
+  const products = productsData?.data ?? [];
 
   const stats = useMemo(() => {
-    const items = filteredAndSorted;
-    const uniqueBrands = new Set(items.map((p) => p.brand_id)).size;
-    const margins = items
+    const uniqueBrands = new Set(products.map((p) => p.brand_id)).size;
+    const margins = products
       .filter((p) => p.margin_pct != null)
       .map((p) => p.margin_pct!);
     const avgMargin =
@@ -195,8 +198,12 @@ export default function HomePage() {
             (margins.reduce((a, b) => a + b, 0) / margins.length) * 100,
           ) / 100
         : null;
-    return { total: items.length, uniqueBrands, avgMargin };
-  }, [filteredAndSorted]);
+    return {
+      total: productsData?.total ?? 0,
+      uniqueBrands,
+      avgMargin,
+    };
+  }, [products, productsData?.total]);
 
   const handleSort = useCallback(
     (key: SortKey) => {
@@ -224,24 +231,27 @@ export default function HomePage() {
     label: string;
     sortKeyName: SortKey;
     tooltip: string;
-  }) => (
-    <th
-      className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider cursor-pointer select-none hover:text-text transition-colors"
-      onClick={() => handleSort(sortKeyName)}
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        <Tooltip content={tooltip}>
-          <InfoIcon />
-        </Tooltip>
-        {sortKey === sortKeyName && (
-          <span className="text-text">
-            {sortDir === "asc" ? "\u2191" : "\u2193"}
+  }) => {
+    const active = sortKey === sortKeyName;
+    return (
+      <th
+        className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider cursor-pointer select-none hover:text-text transition-colors"
+        onClick={() => handleSort(sortKeyName)}
+      >
+        <span className="inline-flex items-center gap-1">
+          {label}
+          <Tooltip content={tooltip}>
+            <InfoIcon />
+          </Tooltip>
+          <span
+            className={active ? "text-text" : "text-muted/40"}
+          >
+            {active ? (sortDir === "asc" ? "\u2191" : "\u2193") : "\u2195"}
           </span>
-        )}
-      </span>
-    </th>
-  );
+        </span>
+      </th>
+    );
+  };
 
   return (
     <div>
@@ -270,17 +280,6 @@ export default function HomePage() {
               </option>
             ))}
           </select>
-          <select
-            value={marginFilter}
-            onChange={(e) => setMarginFilter(e.target.value as MarginFilter)}
-            className="px-4 py-2 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:border-border2"
-          >
-            <option value="all">Semua Margin</option>
-            <option value="gt20">&gt;20%</option>
-            <option value="10to20">10 - 20%</option>
-            <option value="lt10">&lt;10%</option>
-            <option value="no_sell">Tanpa Harga Jual</option>
-          </select>
         </div>
         <div className="flex gap-4 text-xs text-muted font-[family-name:var(--font-dm-mono)]">
           <span>{stats.total} produk</span>
@@ -292,7 +291,7 @@ export default function HomePage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted">Memuat data...</div>
+        <TableSkeleton />
       ) : (
         <>
           <div className="bg-surface rounded-xl border border-border overflow-hidden">
@@ -322,7 +321,7 @@ export default function HomePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAndSorted.map((product, i) => (
+                  {products.map((product, i) => (
                     <tr
                       key={product.id}
                       className={`${
@@ -355,13 +354,14 @@ export default function HomePage() {
                         />
                       </td>
                       <td
-                        className="px-3 py-2.5"
+                        className="px-3 py-2"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
                           <button
-                            className="p-1.5 rounded hover:bg-bg transition-colors text-muted hover:text-text"
+                            className="p-3 rounded-lg hover:bg-bg transition-colors text-muted hover:text-text"
                             title="Edit"
+                            aria-label="Edit produk"
                             onClick={() => {
                               setSelectedProduct(product);
                               setDrawerEditMode(true);
@@ -370,8 +370,8 @@ export default function HomePage() {
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
+                              width="18"
+                              height="18"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -384,18 +384,17 @@ export default function HomePage() {
                             </svg>
                           </button>
                           {deletingId === product.id ? (
-                            <span className="text-xs flex items-center gap-1">
-                              <span className="text-red">Hapus?</span>
+                            <span className="flex items-center gap-2">
                               <button
-                                className="text-red font-medium hover:underline"
+                                className="px-3 py-2 rounded-lg bg-red text-white text-sm font-medium"
                                 onClick={() =>
                                   deleteMutation.mutate(product.id)
                                 }
                               >
-                                Ya
+                                Hapus
                               </button>
                               <button
-                                className="text-muted hover:underline"
+                                className="px-3 py-2 rounded-lg border border-border text-sm text-muted"
                                 onClick={() => setDeletingId(null)}
                               >
                                 Batal
@@ -403,14 +402,15 @@ export default function HomePage() {
                             </span>
                           ) : (
                             <button
-                              className="p-1.5 rounded hover:bg-red-bg transition-colors text-muted hover:text-red"
+                              className="p-3 rounded-lg hover:bg-red-bg transition-colors text-muted hover:text-red"
                               title="Hapus"
+                              aria-label="Hapus produk"
                               onClick={() => setDeletingId(product.id)}
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
+                                width="18"
+                                height="18"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
@@ -428,7 +428,7 @@ export default function HomePage() {
                       </td>
                     </tr>
                   ))}
-                  {filteredAndSorted.length === 0 && (
+                  {products.length === 0 && (
                     <tr>
                       <td colSpan={5} className="text-center py-12 text-muted">
                         Tidak ada produk ditemukan
@@ -466,7 +466,7 @@ export default function HomePage() {
 
       <RecentChanges
         onProductClick={(productId) => {
-          const product = filteredAndSorted.find((p) => p.id === productId);
+          const product = products.find((p) => p.id === productId);
           if (product) {
             setSelectedProduct(product);
             setDrawerEditMode(false);

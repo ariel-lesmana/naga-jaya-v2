@@ -19,7 +19,7 @@ interface Props {
   initialTab?: DrawerTab;
 }
 
-const PRICE_FIELDS = [
+const PRICE_BELI_FIELDS = [
   { key: 'harga_per_karton', label: 'Harga Per Karton', tooltip: 'Harga beli satu karton penuh dari supplier' },
   { key: 'harga_per_kotak', label: 'Harga Per Kotak', tooltip: 'Harga beli per kotak \u2014 di antara karton dan pak' },
   { key: 'harga_per_pak', label: 'Harga Per Pak', tooltip: 'Harga beli per pak. Biasanya: Harga Karton \u00F7 jumlah pak per karton' },
@@ -28,12 +28,17 @@ const PRICE_FIELDS = [
   { key: 'harga_net', label: 'Harga Net', tooltip: 'Harga setelah diskon supplier \u2014 lebih akurat dari Harga Umum' },
   { key: 'harga_daftar', label: 'Harga Daftar', tooltip: 'Harga katalog sebelum diskon. Gunakan sebagai referensi saja' },
   { key: 'harga', label: 'Harga Umum', tooltip: 'Harga generik dari supplier \u2014 satuan tidak selalu jelas' },
+] as const;
+
+const PRICE_JUAL_FIELDS = [
   { key: 'harga_jual', label: 'Harga Jual / Pcs', tooltip: 'Harga jual per satuan ke konsumen akhir' },
   { key: 'harga_jual_per_lusin', label: 'Harga Jual Per Lusin', tooltip: 'Harga jual per lusin (12 pcs) ke konsumen' },
   { key: 'harga_jual_per_karton', label: 'Harga Jual Per Karton', tooltip: 'Harga jual per karton ke konsumen' },
   { key: 'harga_jual_per_kotak', label: 'Harga Jual Per Kotak', tooltip: 'Harga jual per kotak ke konsumen' },
   { key: 'harga_jual_per_pak', label: 'Harga Jual Per Pak', tooltip: 'Harga jual per pak ke konsumen' },
 ] as const;
+
+const PRICE_FIELDS = [...PRICE_BELI_FIELDS, ...PRICE_JUAL_FIELDS] as const;
 
 const SATUAN_SOURCE_LABEL: Record<string, string> = {
   disc_net_computed: 'Net dari Diskon Supplier',
@@ -78,6 +83,8 @@ export function ProductDrawer({ product: initialProduct, editMode, onEditModeCha
 
   const [form, setForm] = useState<Record<string, string>>({});
   const [discExpanded, setDiscExpanded] = useState(false);
+  const [beliOpen, setBeliOpen] = useState(true);
+  const [jualOpen, setJualOpen] = useState(true);
 
   useEffect(() => {
     if (editMode) {
@@ -144,6 +151,14 @@ export function ProductDrawer({ product: initialProduct, editMode, onEditModeCha
     updateMutation.mutate(dto);
   };
 
+  const handleClose = () => {
+    if (editMode) {
+      const ok = window.confirm('Buang perubahan yang belum disimpan?');
+      if (!ok) return;
+    }
+    onClose();
+  };
+
   const satuanSource = useMemo(() => getSatuanSource(product), [product]);
 
   const discMismatch = useMemo(() => {
@@ -181,7 +196,7 @@ export function ProductDrawer({ product: initialProduct, editMode, onEditModeCha
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 z-50" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/20 z-50" onClick={handleClose} />
       <div className="fixed right-0 top-0 h-full w-[420px] max-w-full bg-surface z-50 shadow-xl overflow-y-auto">
         <div className="sticky top-0 z-10 bg-surface">
           <div className="border-b border-border px-6 py-4 flex items-center justify-between">
@@ -198,10 +213,11 @@ export function ProductDrawer({ product: initialProduct, editMode, onEditModeCha
                 </button>
               )}
               <button
-                onClick={onClose}
-                className="p-1.5 rounded hover:bg-bg transition-colors text-muted"
+                onClick={handleClose}
+                aria-label="Tutup"
+                className="p-2.5 rounded-lg hover:bg-bg transition-colors text-muted"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6 6 18" /><path d="m6 6 12 12" />
                 </svg>
               </button>
@@ -213,7 +229,7 @@ export function ProductDrawer({ product: initialProduct, editMode, onEditModeCha
             <div className="flex border-b border-border">
               <button
                 onClick={() => setActiveTab('detail')}
-                className={`flex-1 py-2.5 text-sm font-medium text-center transition-colors ${
+                className={`flex-1 py-3.5 text-sm font-medium text-center transition-colors ${
                   activeTab === 'detail'
                     ? 'text-text border-b-2 border-text'
                     : 'text-muted hover:text-text'
@@ -223,7 +239,7 @@ export function ProductDrawer({ product: initialProduct, editMode, onEditModeCha
               </button>
               <button
                 onClick={() => setActiveTab('history')}
-                className={`flex-1 py-2.5 text-sm font-medium text-center transition-colors ${
+                className={`flex-1 py-3.5 text-sm font-medium text-center transition-colors ${
                   activeTab === 'history'
                     ? 'text-text border-b-2 border-text'
                     : 'text-muted hover:text-text'
@@ -259,49 +275,114 @@ export function ProductDrawer({ product: initialProduct, editMode, onEditModeCha
                   ))}
                 </select>
               </div>
-              <div className="space-y-3">
-                {PRICE_FIELDS.map(({ key, label, tooltip }) => (
-                  <div key={key}>
-                    <FieldLabel label={label} tooltip={tooltip} />
-                    <input
-                      type="number"
-                      value={form[key] ?? ''}
-                      onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                      placeholder={product[key as keyof ProductResponse] != null ? String(product[key as keyof ProductResponse]) : 'Kosong'}
-                      className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm font-[family-name:var(--font-dm-mono)] focus:outline-none focus:border-border2"
-                    />
+              <div className="border border-border rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setBeliOpen(!beliOpen)}
+                  className="w-full flex items-center justify-between px-4 py-3.5 bg-bg hover:opacity-90 transition-opacity text-left"
+                >
+                  <span className="text-sm font-semibold">Harga Beli</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`text-muted transition-transform ${beliOpen ? 'rotate-90' : ''}`}
+                  >
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </button>
+                {beliOpen && (
+                  <div className="px-4 py-4 space-y-3 border-t border-border">
+                    {PRICE_BELI_FIELDS.map(({ key, label, tooltip }) => (
+                      <div key={key}>
+                        <FieldLabel label={label} tooltip={tooltip} />
+                        <input
+                          type="number"
+                          value={form[key] ?? ''}
+                          onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                          placeholder={product[key as keyof ProductResponse] != null ? String(product[key as keyof ProductResponse]) : 'Kosong'}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm font-[family-name:var(--font-dm-mono)] focus:outline-none focus:border-border2"
+                        />
+                      </div>
+                    ))}
+
+                    <div className="border-t border-border pt-3 space-y-3">
+                      <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Dari Supplier</h3>
+                      <div>
+                        <FieldLabel label="Harga Gross Supplier" tooltip="Harga asli dari supplier sebelum diskon diterapkan" />
+                        <input
+                          type="number"
+                          value={form.harga_gross ?? ''}
+                          onChange={(e) => setForm({ ...form, harga_gross: e.target.value })}
+                          placeholder={product.harga_gross != null ? String(product.harga_gross) : 'Kosong'}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm font-[family-name:var(--font-dm-mono)] focus:outline-none focus:border-border2"
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel label="Diskon (%)" tooltip="Persentase diskon dari supplier. Hasil net = Gross \u00D7 (1 \u2212 disc%)" />
+                        <input
+                          type="number"
+                          value={form.disc_pct ?? ''}
+                          onChange={(e) => setForm({ ...form, disc_pct: e.target.value })}
+                          placeholder="cth: 50"
+                          min={0}
+                          max={100}
+                          step={0.01}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm font-[family-name:var(--font-dm-mono)] focus:outline-none focus:border-border2"
+                        />
+                      </div>
+                      <div className="font-[family-name:var(--font-dm-mono)] text-sm text-green">
+                        Hasil net: {liveDiscNet != null ? formatIDR(liveDiscNet) : '\u2014'}
+                      </div>
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
 
-              <div className="border-t border-border pt-4 space-y-3">
-                <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Dari Supplier</h3>
-                <div>
-                  <FieldLabel label="Harga Gross Supplier" tooltip="Harga asli dari supplier sebelum diskon diterapkan" />
-                  <input
-                    type="number"
-                    value={form.harga_gross ?? ''}
-                    onChange={(e) => setForm({ ...form, harga_gross: e.target.value })}
-                    placeholder={product.harga_gross != null ? String(product.harga_gross) : 'Kosong'}
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm font-[family-name:var(--font-dm-mono)] focus:outline-none focus:border-border2"
-                  />
-                </div>
-                <div>
-                  <FieldLabel label="Diskon (%)" tooltip="Persentase diskon dari supplier. Hasil net = Gross \u00D7 (1 \u2212 disc%)" />
-                  <input
-                    type="number"
-                    value={form.disc_pct ?? ''}
-                    onChange={(e) => setForm({ ...form, disc_pct: e.target.value })}
-                    placeholder="cth: 50"
-                    min={0}
-                    max={100}
-                    step={0.01}
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm font-[family-name:var(--font-dm-mono)] focus:outline-none focus:border-border2"
-                  />
-                </div>
-                <div className="font-[family-name:var(--font-dm-mono)] text-sm text-green">
-                  Hasil net: {liveDiscNet != null ? formatIDR(liveDiscNet) : '\u2014'}
-                </div>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setJualOpen(!jualOpen)}
+                  className="w-full flex items-center justify-between px-4 py-3.5 bg-bg hover:opacity-90 transition-opacity text-left"
+                >
+                  <span className="text-sm font-semibold">Harga Jual</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`text-muted transition-transform ${jualOpen ? 'rotate-90' : ''}`}
+                  >
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </button>
+                {jualOpen && (
+                  <div className="px-4 py-4 space-y-3 border-t border-border">
+                    {PRICE_JUAL_FIELDS.map(({ key, label, tooltip }) => (
+                      <div key={key}>
+                        <FieldLabel label={label} tooltip={tooltip} />
+                        <input
+                          type="number"
+                          value={form[key] ?? ''}
+                          onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                          placeholder={product[key as keyof ProductResponse] != null ? String(product[key as keyof ProductResponse]) : 'Kosong'}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm font-[family-name:var(--font-dm-mono)] focus:outline-none focus:border-border2"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">

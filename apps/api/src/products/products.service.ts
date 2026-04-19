@@ -64,12 +64,19 @@ export class ProductsService {
     brand_id?: number;
     page?: number;
     limit?: number;
+    sort_by?: 'name' | 'brand' | 'created_at';
+    sort_dir?: 'asc' | 'desc';
+    deleted?: boolean;
   }) {
     const page = params.page || 1;
     const limit = params.limit || 50;
     const skip = (page - 1) * limit;
+    const sortBy = params.sort_by ?? 'name';
+    const sortDir = params.sort_dir ?? 'asc';
 
-    const where: any = {};
+    const where: any = {
+      deleted_at: params.deleted ? { not: null } : null,
+    };
 
     if (params.search) {
       where.name = { contains: params.search, mode: 'insensitive' };
@@ -79,13 +86,20 @@ export class ProductsService {
       where.brand_id = params.brand_id;
     }
 
+    const orderBy =
+      sortBy === 'brand'
+        ? { brand: { name: sortDir } }
+        : params.deleted
+          ? { deleted_at: 'desc' as const }
+          : { [sortBy]: sortDir };
+
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
         include: { brand: { select: { id: true, name: true } } },
         skip,
         take: limit,
-        orderBy: { id: 'asc' },
+        orderBy,
       }),
       this.prisma.product.count({ where }),
     ]);
@@ -99,13 +113,13 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, opts?: { includeDeleted?: boolean }) {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: { brand: { select: { id: true, name: true } } },
     });
 
-    if (!product) {
+    if (!product || (!opts?.includeDeleted && product.deleted_at != null)) {
       throw new NotFoundException(`Product #${id} not found`);
     }
 
@@ -148,6 +162,33 @@ export class ProductsService {
   }
 
   async remove(id: number) {
+    const exists = await this.prisma.product.findUnique({ where: { id } });
+    if (!exists || exists.deleted_at != null) {
+      throw new NotFoundException(`Product #${id} not found`);
+    }
+
+    await this.prisma.product.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+    return { success: true };
+  }
+
+  async restore(id: number) {
+    const exists = await this.prisma.product.findUnique({ where: { id } });
+    if (!exists || exists.deleted_at == null) {
+      throw new NotFoundException(`Deleted product #${id} not found`);
+    }
+
+    const product = await this.prisma.product.update({
+      where: { id },
+      data: { deleted_at: null },
+      include: { brand: { select: { id: true, name: true } } },
+    });
+    return this.computeFields(product);
+  }
+
+  async permanentRemove(id: number) {
     const exists = await this.prisma.product.findUnique({ where: { id } });
     if (!exists) {
       throw new NotFoundException(`Product #${id} not found`);

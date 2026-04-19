@@ -178,6 +178,7 @@ export class ImportService {
 
   async diffWithDatabase(rows: ParsedRow[]): Promise<DiffResult> {
     const allProducts = await this.prisma.product.findMany({
+      where: { deleted_at: null },
       include: { brand: { select: { id: true, name: true } } },
     });
 
@@ -277,8 +278,9 @@ export class ImportService {
       brandMap.set(b.name.toLowerCase(), b.id);
     }
 
-    // Get existing products lookup
+    // Get existing products lookup (active only — soft-deleted treated as new)
     const allProducts = await this.prisma.product.findMany({
+      where: { deleted_at: null },
       include: { brand: { select: { id: true, name: true } } },
     });
     const dbLookup = new Map<string, any>();

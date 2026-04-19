@@ -41,7 +41,7 @@ export class ExportService {
   }
 
   async generateExcel(filters?: ExportFilters): Promise<Buffer> {
-    const where: any = {};
+    const where: any = { deleted_at: null };
     if (filters?.brand_id) {
       where.brand_id = filters.brand_id;
     }
