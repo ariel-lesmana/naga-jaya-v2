@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Brand {
+  id           Int       @id @default(autoincrement())
+  name         String    @unique @db.VarChar(255)
+  source_sheet String?   @db.VarChar(100)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  products     Product[]
+
+  @@map("brands")
+}
+
+model Product {
+  id                Int      @id @default(autoincrement())
+  brand_id          Int
+  brand             Brand    @relation(fields: [brand_id], references: [id], onDelete: Cascade)
+  name              String   @db.VarChar(500)
+  harga_per_karton  Int?
+  harga_per_kotak   Int?
+  harga_per_pak     Int?
+  harga_per_lusin   Int?
+  harga_per_pcs     Int?
+  harga_net         Int?
+  harga_daftar      Int?
+  harga             Int?
+  harga_jual        Int?
+  harga_jual_per_lusin  Int?
+  harga_jual_per_karton Int?
+  harga_jual_per_kotak  Int?
+  harga_jual_per_pak    Int?
+  harga_gross       Int?
+  disc_pct          Decimal?  @db.Decimal(5, 2)
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  price_history     PriceHistory[]
+
+  @@map("products")
+}
+
+model PriceHistory {
+  id          Int      @id @default(autoincrement())
+  product_id  Int
+  product     Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  field       String   @db.VarChar(50)
+  old_value   Int?
+  new_value   Int?
+  source      String   @db.VarChar(20)
+  changed_by  String?  @db.VarChar(100)
+  created_at  DateTime @default(now())
+
+  @@index([product_id])
+  @@index([created_at])
+  @@map("price_history")
+}
