@@ -1,0 +1,34 @@
+{
+  "name": "Naga Jaya Pricelist",
+  "short_name": "Naga Jaya",
+  "description": "Daftar harga produk",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F7F7F5",
+  "theme_color": "#1A1A18",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tambah Produk",
+      "url": "/products/new"
+    },
+    {
+      "name": "Tambah Brand",
+      "url": "/brands/new"
+    },
+    {
+      "name": "Sampah",
+      "url": "/sampah"
+    }
+  ]
+}

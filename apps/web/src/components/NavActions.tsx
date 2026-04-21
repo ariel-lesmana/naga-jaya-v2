@@ -61,6 +61,12 @@ export function NavActions() {
           Sampah
         </Link>
         <Link
+          href="/brands/new"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-bg transition-colors"
+        >
+          Tambah Brand
+        </Link>
+        <Link
           href="/products/new"
           className="bg-text text-surface px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
         >

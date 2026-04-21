@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { getProducts, getBrands, deleteProduct } from "@/lib/api";
 import { ProductResponse } from "@/lib/types";
 import { formatIDR } from "@/lib/format";
@@ -121,7 +121,7 @@ function TableSkeleton() {
 
 type SortDir = "asc" | "desc";
 
-export default function HomePage() {
+function HomePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -139,11 +139,37 @@ export default function HomePage() {
     "detail" | "history"
   >("detail");
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (selectedProduct) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length !== 1) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable
+      )
+        return;
+      const input = searchRef.current;
+      if (!input) return;
+      e.preventDefault();
+      input.focus();
+      setSearch((s) => s + e.key);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedProduct]);
 
   useEffect(() => {
     if (page !== 1) {
@@ -258,6 +284,7 @@ export default function HomePage() {
       <div className="sticky top-[57px] z-40 bg-bg pb-4 space-y-4">
         <div className="flex flex-wrap gap-3 items-center">
           <input
+            ref={searchRef}
             type="text"
             placeholder="Cari nama produk"
             value={search}
@@ -489,5 +516,13 @@ export default function HomePage() {
         />
       )}
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <HomePageInner />
+    </Suspense>
   );
 }

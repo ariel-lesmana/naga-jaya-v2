@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, DM_Mono } from "next/font/google";
 import Link from "next/link";
 import { Providers } from "./providers";
@@ -21,6 +21,24 @@ const dmMono = DM_Mono({
 export const metadata: Metadata = {
   title: "Daftar Harga",
   description: "Product price management",
+  manifest: "/manifest.webmanifest",
+  applicationName: "Naga Jaya Pricelist",
+  appleWebApp: {
+    capable: true,
+    title: "Naga Jaya",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1A1A18",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

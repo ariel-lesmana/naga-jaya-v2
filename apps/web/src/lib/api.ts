@@ -32,6 +32,13 @@ export function getBrands(): Promise<Brand[]> {
   return fetchAPI('/brands');
 }
 
+export function createBrand(dto: { name: string; source_sheet?: string }): Promise<Brand> {
+  return fetchAPI('/brands', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+}
+
 export function getProducts(params: {
   search?: string;
   brand_id?: number;
