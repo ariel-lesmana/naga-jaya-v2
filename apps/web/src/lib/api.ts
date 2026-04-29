@@ -10,6 +10,16 @@ import {
   ImportResult,
   PriceHistoryResponse,
   SummaryEntry,
+  BulkCreateResult,
+  BulkUpdateResult,
+  DuplicateCheckResponse,
+  AuditLogList,
+  AuditLogDetail,
+  AuditLogFilters,
+  Receipt,
+  ReceiptItemInput,
+  ReceiptStatus,
+  PaginatedReceipts,
 } from './types';
 
 import { env } from './env';
@@ -61,10 +71,37 @@ export function getProduct(id: number): Promise<ProductResponse> {
   return fetchAPI(`/products/${id}`);
 }
 
+export function checkProductDuplicates(params: {
+  brand_id: number;
+  name: string;
+}): Promise<DuplicateCheckResponse> {
+  const q = new URLSearchParams({
+    brand_id: String(params.brand_id),
+    name: params.name,
+  });
+  return fetchAPI(`/products/duplicate-check?${q.toString()}`);
+}
+
 export function createProduct(dto: CreateProductDto): Promise<ProductResponse> {
   return fetchAPI('/products', {
     method: 'POST',
     body: JSON.stringify(dto),
+  });
+}
+
+export function bulkCreateProducts(products: CreateProductDto[]): Promise<BulkCreateResult> {
+  return fetchAPI('/products/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ products }),
+  });
+}
+
+export function bulkUpdateProducts(
+  updates: { id: number; patch: UpdateProductDto }[],
+): Promise<BulkUpdateResult> {
+  return fetchAPI('/products/bulk', {
+    method: 'PATCH',
+    body: JSON.stringify({ updates }),
   });
 }
 
@@ -163,4 +200,139 @@ export function getHistorySummary(options?: {
   if (options?.brand_id) query.set('brand_id', String(options.brand_id));
   if (options?.limit) query.set('limit', String(options.limit));
   return fetchAPI(`/history/summary?${query.toString()}`);
+}
+
+async function adminFetch<T>(path: string, token: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Admin-Token': token,
+    },
+  });
+  if (res.status === 401) {
+    throw new Error('UNAUTHORIZED');
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || `API error: ${res.status}`);
+  }
+  return res.json();
+}
+
+export function getAuditLogs(
+  token: string,
+  filters: AuditLogFilters = {},
+): Promise<AuditLogList> {
+  const query = new URLSearchParams();
+  if (filters.page) query.set('page', String(filters.page));
+  if (filters.limit) query.set('limit', String(filters.limit));
+  if (filters.method) query.set('method', filters.method);
+  if (filters.path) query.set('path', filters.path);
+  if (filters.from) query.set('from', filters.from);
+  if (filters.to) query.set('to', filters.to);
+  if (filters.status_min) query.set('status_min', String(filters.status_min));
+  const qs = query.toString();
+  return adminFetch(`/logs${qs ? `?${qs}` : ''}`, token);
+}
+
+export function getAuditLog(
+  token: string,
+  id: number,
+): Promise<AuditLogDetail> {
+  return adminFetch(`/logs/${id}`, token);
+}
+
+export function listReceipts(params: {
+  status?: ReceiptStatus;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedReceipts> {
+  const q = new URLSearchParams();
+  if (params.status) q.set('status', params.status);
+  if (params.search) q.set('search', params.search);
+  if (params.page) q.set('page', String(params.page));
+  if (params.limit) q.set('limit', String(params.limit));
+  return fetchAPI(`/receipts?${q.toString()}`);
+}
+
+export async function getLatestDraftReceipt(): Promise<Receipt | null> {
+  const res = await fetchAPI<{ receipt: Receipt | null }>(
+    '/receipts/latest-draft',
+  );
+  return res.receipt;
+}
+
+export function getReceipt(id: number): Promise<Receipt> {
+  return fetchAPI(`/receipts/${id}`);
+}
+
+export function createReceipt(dto: { customer_name?: string | null } = {}): Promise<Receipt> {
+  return fetchAPI('/receipts', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+}
+
+export function updateReceipt(
+  id: number,
+  dto: { customer_name?: string | null },
+): Promise<Receipt> {
+  return fetchAPI(`/receipts/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dto),
+  });
+}
+
+export function replaceReceiptItems(
+  id: number,
+  items: ReceiptItemInput[],
+): Promise<Receipt> {
+  return fetchAPI(`/receipts/${id}/items`, {
+    method: 'PUT',
+    body: JSON.stringify({ items }),
+  });
+}
+
+export function deleteReceiptItem(
+  id: number,
+  itemId: number,
+): Promise<{ success: boolean }> {
+  return fetchAPI(`/receipts/${id}/items/${itemId}`, { method: 'DELETE' });
+}
+
+export function finalizeReceipt(id: number): Promise<Receipt> {
+  return fetchAPI(`/receipts/${id}/finalize`, { method: 'POST' });
+}
+
+export function duplicateReceipt(id: number): Promise<Receipt> {
+  return fetchAPI(`/receipts/${id}/duplicate`, { method: 'POST' });
+}
+
+export function deleteReceipt(id: number): Promise<{ success: boolean }> {
+  return fetchAPI(`/receipts/${id}`, { method: 'DELETE' });
+}
+
+export function listTrashedReceipts(params: {
+  status?: ReceiptStatus;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedReceipts> {
+  const q = new URLSearchParams();
+  if (params.status) q.set('status', params.status);
+  if (params.search) q.set('search', params.search);
+  if (params.page) q.set('page', String(params.page));
+  if (params.limit) q.set('limit', String(params.limit));
+  return fetchAPI(`/receipts/trash?${q.toString()}`);
+}
+
+export function restoreReceipt(id: number): Promise<Receipt> {
+  return fetchAPI(`/receipts/${id}/restore`, { method: 'PATCH' });
+}
+
+export function permanentDeleteReceipt(
+  id: number,
+): Promise<{ success: boolean }> {
+  return fetchAPI(`/receipts/${id}/permanent`, { method: 'DELETE' });
 }

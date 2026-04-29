@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Download, Upload, Trash2 } from "lucide-react";
+import { Download, Upload, Trash2, Calculator as CalculatorIcon, Receipt as ReceiptIcon } from "lucide-react";
 import { toast } from "sonner";
 import { exportExcel } from "@/lib/api";
 import { ImportModal } from "./ImportModal";
+import { Calculator } from "./Calculator";
 
 export function NavActions() {
   const [showImport, setShowImport] = useState(false);
+  const [showCalc, setShowCalc] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
@@ -35,6 +37,14 @@ export function NavActions() {
     <>
       <div className="flex items-center gap-2">
         <button
+          onClick={() => setShowCalc(true)}
+          className="flex items-center justify-center p-2 rounded-lg border border-border hover:bg-bg transition-colors"
+          aria-label="Kalkulator"
+          title="Kalkulator"
+        >
+          <CalculatorIcon size={16} />
+        </button>
+        <button
           onClick={handleExport}
           disabled={exporting}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-bg transition-colors disabled:opacity-40"
@@ -53,6 +63,13 @@ export function NavActions() {
           <Upload size={16} />
           Import Excel
         </button>
+        <Link
+          href="/receipts"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-bg transition-colors"
+        >
+          <ReceiptIcon size={16} />
+          Kwitansi
+        </Link>
         <Link
           href="/sampah"
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-bg transition-colors"
@@ -75,6 +92,7 @@ export function NavActions() {
       </div>
 
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+      {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
     </>
   );
 }

@@ -7,6 +7,7 @@ import { getProducts, getBrands, deleteProduct } from "@/lib/api";
 import { ProductResponse } from "@/lib/types";
 import { formatIDR } from "@/lib/format";
 import { ProductDrawer } from "@/components/ProductDrawer";
+import { BulkUpdateDrawer } from "@/components/BulkUpdateDrawer";
 import { RecentChanges } from "@/components/RecentChanges";
 import { Tooltip, InfoIcon } from "@/components/Tooltip";
 import { toast } from "sonner";
@@ -139,6 +140,7 @@ function HomePageInner() {
     "detail" | "history"
   >("detail");
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -307,6 +309,16 @@ function HomePageInner() {
               </option>
             ))}
           </select>
+          {brandFilter !== undefined && (
+            <button
+              type="button"
+              onClick={() => setBulkOpen(true)}
+              className="px-4 py-2 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-bg transition-colors"
+              title="Edit harga banyak produk sekaligus"
+            >
+              Bulk Update
+            </button>
+          )}
         </div>
         <div className="flex gap-4 text-xs text-muted font-[family-name:var(--font-dm-mono)]">
           <span>{stats.total} produk</span>
@@ -500,6 +512,13 @@ function HomePageInner() {
             setDrawerInitialTab("history");
           }
         }}
+      />
+
+      <BulkUpdateDrawer
+        open={bulkOpen}
+        brandId={brandFilter}
+        brandName={brands?.find((b) => b.id === brandFilter)?.name}
+        onClose={() => setBulkOpen(false)}
       />
 
       {selectedProduct && (

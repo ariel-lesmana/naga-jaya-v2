@@ -12,6 +12,8 @@ import {
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { BulkCreateProductDto } from './dto/bulk-create-product.dto';
+import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -61,6 +63,14 @@ export class ProductsController {
     });
   }
 
+  @Get('duplicate-check')
+  duplicateCheck(
+    @Query('brand_id', ParseIntPipe) brand_id: number,
+    @Query('name') name?: string,
+  ) {
+    return this.productsService.findDuplicates({ brand_id, name: name ?? '' });
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.findOne(id);
@@ -69,6 +79,16 @@ export class ProductsController {
   @Post()
   create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
+  }
+
+  @Post('bulk')
+  bulkCreate(@Body() dto: BulkCreateProductDto) {
+    return this.productsService.bulkCreate(dto.products);
+  }
+
+  @Patch('bulk')
+  bulkUpdate(@Body() dto: BulkUpdateProductDto) {
+    return this.productsService.bulkUpdate(dto.updates);
   }
 
   @Patch(':id')

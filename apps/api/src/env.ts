@@ -7,6 +7,7 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
+  ADMIN_TOKEN: z.string().min(16),
 });
 
 const parsed = envSchema.safeParse(process.env);

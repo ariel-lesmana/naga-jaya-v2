@@ -17,7 +17,7 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(env.PORT);
+  await app.listen(env.PORT, '0.0.0.0');
   console.log(`API running on http://localhost:${env.PORT}`);
 }
 bootstrap();

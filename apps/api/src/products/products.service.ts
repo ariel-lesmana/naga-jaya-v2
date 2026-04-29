@@ -18,6 +18,18 @@ export class ProductsService {
     return Math.round(gross * (1 - disc / 100));
   }
 
+  private deriveHargaPcsFromLusin<T extends { harga_per_lusin?: number | null; harga_per_pcs?: number | null }>(
+    dto: T,
+  ): T {
+    if (
+      dto.harga_per_lusin != null &&
+      (dto.harga_per_pcs === undefined || dto.harga_per_pcs === null)
+    ) {
+      return { ...dto, harga_per_pcs: Math.round(dto.harga_per_lusin / 12) };
+    }
+    return dto;
+  }
+
   private computeFields(product: any) {
     const disc_pct_num = product.disc_pct != null ? Number(product.disc_pct) : null;
     const disc_net_computed = this.computeDiscNet(product.harga_gross, disc_pct_num);
@@ -79,7 +91,12 @@ export class ProductsService {
     };
 
     if (params.search) {
-      where.name = { contains: params.search, mode: 'insensitive' };
+      const tokens = params.search.trim().split(/\s+/).filter(Boolean);
+      if (tokens.length > 0) {
+        where.AND = tokens.map((t) => ({
+          name: { contains: t, mode: 'insensitive' as const },
+        }));
+      }
     }
 
     if (params.brand_id) {
@@ -126,13 +143,96 @@ export class ProductsService {
     return this.computeFields(product);
   }
 
+  private normalizeName(s: string): string {
+    return s
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  async findDuplicates(params: { brand_id: number; name: string }) {
+    const norm = this.normalizeName(params.name);
+    if (norm.length < 2) return { matches: [] };
+
+    const products = await this.prisma.product.findMany({
+      where: { brand_id: params.brand_id, deleted_at: null },
+      select: { id: true, name: true },
+    });
+
+    const candidateTokens = new Set(norm.split(' '));
+    const scored = products
+      .map((p) => {
+        const pn = this.normalizeName(p.name);
+        if (pn === norm) {
+          return { ...p, score: 100, match_type: 'exact' as const };
+        }
+
+        const contains = pn.includes(norm) || norm.includes(pn);
+        const pTokens = new Set(pn.split(' '));
+        const inter = [...candidateTokens].filter((t) => pTokens.has(t)).length;
+        const union = new Set([...candidateTokens, ...pTokens]).size;
+        const jaccard = union === 0 ? 0 : inter / union;
+
+        if (!contains && jaccard < 0.5) return null;
+        return {
+          ...p,
+          score: Math.round(Math.max(jaccard, contains ? 0.8 : 0) * 100),
+          match_type: 'similar' as const,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+
+    return { matches: scored };
+  }
+
   async create(dto: CreateProductDto) {
     const product = await this.prisma.product.create({
-      data: dto,
+      data: this.deriveHargaPcsFromLusin(dto),
       include: { brand: { select: { id: true, name: true } } },
     });
 
     return this.computeFields(product);
+  }
+
+  async bulkCreate(dtos: CreateProductDto[]) {
+    const results = await Promise.allSettled(dtos.map((dto) => this.create(dto)));
+    let inserted = 0;
+    let errors = 0;
+    const mapped = results.map((r, index) => {
+      if (r.status === 'fulfilled') {
+        inserted++;
+        return { index, success: true, product: r.value };
+      }
+      errors++;
+      return { index, success: false, error: (r.reason as Error)?.message ?? 'Unknown error' };
+    });
+    return { results: mapped, inserted, errors };
+  }
+
+  async bulkUpdate(items: { id: number; patch: UpdateProductDto }[]) {
+    const results = await Promise.allSettled(
+      items.map((it) => this.update(it.id, it.patch)),
+    );
+    let updated = 0;
+    let errors = 0;
+    const mapped = results.map((r, index) => {
+      const id = items[index].id;
+      if (r.status === 'fulfilled') {
+        updated++;
+        return { index, id, success: true, product: r.value };
+      }
+      errors++;
+      return {
+        index,
+        id,
+        success: false,
+        error: (r.reason as Error)?.message ?? 'Unknown error',
+      };
+    });
+    return { results: mapped, updated, errors };
   }
 
   async update(id: number, dto: UpdateProductDto) {
@@ -143,7 +243,7 @@ export class ProductsService {
 
     const product = await this.prisma.product.update({
       where: { id },
-      data: dto,
+      data: this.deriveHargaPcsFromLusin(dto),
       include: { brand: { select: { id: true, name: true } } },
     });
 
