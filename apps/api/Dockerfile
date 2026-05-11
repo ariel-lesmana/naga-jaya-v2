@@ -1,4 +1,5 @@
 FROM node:22-alpine AS base
+RUN apk add --no-cache openssl wget
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 FROM base AS build
@@ -23,4 +24,6 @@ COPY --from=build /app/package.json ./
 
 WORKDIR /app/apps/api
 EXPOSE 3001
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
+  CMD wget -qO- http://localhost:3001/health || exit 1
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
