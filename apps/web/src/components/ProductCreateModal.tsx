@@ -112,7 +112,7 @@ export function ProductCreateModal({
     if (unit && price.trim() !== '') {
       const n = Number(price);
       if (!Number.isNaN(n)) {
-        (dto as Record<string, number | null>)[PRICE_FIELD[unit]] = n;
+        (dto as unknown as Record<string, number | null>)[PRICE_FIELD[unit]] = n;
       }
     }
     createMut.mutate(dto);

@@ -87,7 +87,8 @@ function toPayload(row: GridRow, index: number): ReceiptItemInput {
 function effectivePrice(row: GridRow, snapshot: number | null): number | null {
   if (snapshot != null) return snapshot;
   if (!row.product || !row.unit_type) return null;
-  return row.product[PRICE_FIELD[row.unit_type]] ?? null;
+  const v = row.product[PRICE_FIELD[row.unit_type]];
+  return typeof v === 'number' ? v : null;
 }
 
 const fmt = (n: number | null) =>
@@ -338,7 +339,12 @@ export function ReceiptItemsGrid({ receipt, readOnly = false }: Props) {
                 r.product && r.unit_type && price == null;
 
               return (
-                <tr key={r.key} className="border-t border-border">
+                <tr
+                  key={r.key}
+                  className={`border-t border-border ${
+                    priceMissing ? 'bg-red-bg print:bg-transparent' : ''
+                  }`}
+                >
                   <td className="px-2 py-1">
                     <input
                       type="number"
@@ -460,7 +466,15 @@ export function ReceiptItemsGrid({ receipt, readOnly = false }: Props) {
                       }
                     />
                     <span className="hidden print:inline tabular-nums">
-                      {price != null ? `Rp ${fmt(price)}` : '—'}
+                      {(() => {
+                        const unit =
+                          hasOverride && qty > 0
+                            ? Number(r.line_total_override) / qty
+                            : price != null
+                            ? Math.max(0, price - disc)
+                            : null;
+                        return unit != null ? `Rp ${fmt(unit)}` : '—';
+                      })()}
                     </span>
                   </td>
                   <td className="px-2 py-1 print:hidden">

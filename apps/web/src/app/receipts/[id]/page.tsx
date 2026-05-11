@@ -13,6 +13,41 @@ import {
   updateReceipt,
 } from '@/lib/api';
 import { ReceiptItemsGrid } from '@/components/ReceiptItemsGrid';
+import { PRICE_FIELD, Receipt } from '@/lib/types';
+
+function validateForPrint(receipt: Receipt): string[] {
+  const errors: string[] = [];
+  if (receipt.items.length === 0) {
+    errors.push('Kwitansi kosong');
+    return errors;
+  }
+  for (const item of receipt.items) {
+    const label = `Item #${item.id}`;
+    if (!item.product_id || !item.product) {
+      errors.push(`${label}: produk belum dipilih`);
+      continue;
+    }
+    if (item.product.deleted_at) {
+      errors.push(`${label}: produk "${item.product.name}" sudah dihapus`);
+      continue;
+    }
+    if (!item.unit_type) {
+      errors.push(`${label}: satuan belum dipilih`);
+      continue;
+    }
+    if (item.quantity == null || item.quantity <= 0) {
+      errors.push(`${label}: qty harus > 0`);
+      continue;
+    }
+    if (item.price_snapshot != null) continue;
+    const field = PRICE_FIELD[item.unit_type];
+    const price = item.product[field] as number | null;
+    if (price == null) {
+      errors.push(`${label}: produk "${item.product.name}" belum ada ${field}`);
+    }
+  }
+  return errors;
+}
 
 export default function ReceiptPage({
   params,
@@ -119,7 +154,19 @@ export default function ReceiptPage({
             {isFinalized ? 'FINAL' : 'DRAFT'}
           </span>
           <button
-            onClick={() => window.print()}
+            onClick={() => {
+              if (!isFinalized) {
+                const errs = validateForPrint(receipt);
+                if (errs.length) {
+                  toast.error(errs[0], {
+                    description:
+                      errs.length > 1 ? `+${errs.length - 1} masalah lain` : undefined,
+                  });
+                  return;
+                }
+              }
+              window.print();
+            }}
             className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-bg"
           >
             Cetak
