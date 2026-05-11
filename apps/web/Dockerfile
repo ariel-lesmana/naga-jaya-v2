@@ -7,6 +7,7 @@ ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/
+COPY apps/api/package.json apps/api/
 RUN pnpm install --frozen-lockfile
 COPY apps/web apps/web
 RUN pnpm --filter web run build
